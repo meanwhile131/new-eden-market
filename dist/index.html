@@ -1,11 +1,41 @@
 <!doctype html>
 <html lang="en-US">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>New Eden Market</title>
-    <script type="module" src="./index.js"></script>
-  </head>
-  <body>
-  </body>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>New Eden Market</title>
+		<script type="module" src="./index.js"></script>
+		<style>
+			table, tr, th, td {
+				border: 2px solid;
+				border-collapse: collapse;
+			}
+		</style>
+	</head>
+	<body>
+		<progress style="display: none;" id="update_progress"></progress>
+		<table>
+			<caption>
+				Most profitable items
+			</caption>
+			<thead>
+				<tr>
+					<th rowspan="2">ID</th>
+					<th colspan="3">Buy</th>
+					<th colspan="3">Sell</th>
+					<th rowspan="2">Potential profit</th>
+				</tr>
+				<tr>
+					<th>Location</th>
+					<th>Price</th>
+					<th>Range</th>
+					<th>Location</th>
+					<th>Price</th>
+					<th>Range</th>
+				</tr>
+			</thead>
+			<tbody id="profitable">
+			</tbody>
+		</table>
+	</body>
 </html>

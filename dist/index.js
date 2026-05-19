@@ -11,7 +11,6 @@ async function fetch_rated(url) {
 }
 
 /** @typedef Order
- * @type {object}
  * @property {number} duration
  * @property {boolean} is_buy_order
  * @property {string} issued
@@ -26,14 +25,28 @@ async function fetch_rated(url) {
  * @property {number} volume_total
  * */
 
-/** @type {Map<number, {
- * buy: Order,
- * sell: Order
- * }} */
+/** @typedef ItemOrders
+ * @property {Order} buy
+ * @property {Order} sell
+ */
+
+/** @param {ItemOrders} orders */
+function rate_item(orders) {
+	const rank = (orders?.buy?.price - orders?.sell?.price) * Math.min(orders?.buy?.volume_remain, orders?.sell?.volume_remain);
+	return Number.isNaN(rank) ? -Infinity : rank;
+}
+
+/** @type {Map<number, ItemOrders>} */
 const best_orders = new Map();
+
+/** @type {HTMLProgressElement} */
+const progressBar = document.getElementById("update_progress");
 
 /** @type {number[]} */
 const regions = await (await fetch_rated("https://esi.evetech.net/universe/regions")).json();
+progressBar.max = regions.length;
+progressBar.value = 0;
+progressBar.style.display = 'block';
 for (const region_id of regions) {
 	let total_pages = 1;
 	for (let page = 1; page <= total_pages; page++) {
@@ -42,6 +55,10 @@ for (const region_id of regions) {
 
 		const resp = await fetch_rated(`https://esi.evetech.net/markets/${region_id}/orders?${params}`);
 		total_pages = resp.headers.get("X-Pages", 1);
+		if (page == 1) {
+			progressBar.max += total_pages - 1;
+		}
+		progressBar.value += 1;
 		/** @type {Order[]} */
 		const orders_page = await resp.json();
 		orders_page.forEach(order => {
@@ -59,8 +76,24 @@ for (const region_id of regions) {
 				best_order.sell = order;
 			}
 			best_orders.set(order.type_id, best_order);
-			console.log(order.type_id, best_order);
 		});
 	}
+}
+progressBar.style.display = 'none';
+
+const best_items = new Map([...best_orders.entries()].sort((a, b) => rate_item(b[1]) - rate_item(a[1])));
+
+/** @type {HTMLTableElement} */
+const table = document.getElementById("profitable");
+for (const item of best_items) {
+	const row = table.insertRow();
+	row.insertCell().innerText = item[0];
+	row.insertCell().innerText = item[1]?.buy?.location_id;
+	row.insertCell().innerText = item[1]?.buy?.price;
+	row.insertCell().innerText = item[1]?.buy?.range;
+	row.insertCell().innerText = item[1]?.sell?.location_id;
+	row.insertCell().innerText = item[1]?.sell?.price;
+	row.insertCell().innerText = item[1]?.sell?.range;
+	row.insertCell().innerText = rate_item(item[1]);
 }
 console.log(best_orders);
