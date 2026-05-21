@@ -45,21 +45,6 @@ function rank_item(orders) {
 	return profit;
 }
 
-/** @type {Map<number, ItemOrders>} */
-const best_orders = new Map();
-/** @type {HTMLProgressElement} */
-const progressBar = document.getElementById("update_progress");
-/** @type {HTMLTableElement} */
-const table = document.getElementById("profitable");
-/** @type {HTMLInputElement} */
-const tokenInput = document.getElementById("token");
-
-/** @type {number[]} */
-const regions = await (await fetch_rated(`https://esi.evetech.net/universe/regions?compatibility_date=${compat_date}`)).json();
-progressBar.max = regions.length;
-progressBar.value = 0;
-progressBar.style.display = 'block';
-
 /** @param {Order[]} page */
 function process_orders_page(page) {
 	page.forEach(order => {
@@ -81,9 +66,36 @@ function process_orders_page(page) {
 
 }
 
+/** @type {Map<number, ItemOrders>} */
+const best_orders = new Map();
+/** @type {HTMLProgressElement} */
+const progressBar = document.getElementById("update_progress");
+/** @type {HTMLTableElement} */
+const table = document.getElementById("profitable");
+/** @type {HTMLInputElement} */
+const tokenInput = document.getElementById("token");
+
+/** @type {number[]} */
+const regions = await (await fetch_rated(`https://esi.evetech.net/universe/regions?compatibility_date=${compat_date}`)).json();
+progressBar.style.display = 'block';
+
+/** @type {Map<number, number>} */
+const region_pages = new Map();
+progressBar.max = 0;
 for (const region_id of regions) {
-	let total_pages = 1;
-	for (let page = 1; page <= total_pages; page++) {
+	const resp = await fetch_rated(`https://esi.evetech.net/markets/${region_id}/orders?compatibility_date=${compat_date}`);
+	/** @type {Order[]} */
+	const orders_page = await resp.json();
+	process_orders_page(orders_page);
+	const total_pages = Number(resp.headers.get("X-Pages", 1));
+	progressBar.max += total_pages;
+	region_pages.set(region_id, total_pages);
+}
+
+progressBar.value = regions.length;
+for (const region_id of regions) {
+	let total_pages = region_pages.get(region_id);
+	for (let page = 2; page <= total_pages; page++) {
 		const params = new URLSearchParams();
 		params.append("page", page);
 
