@@ -90,11 +90,11 @@ for (const item of best_items) {
 	const row = table.insertRow();
 	row.insertCell().innerText = item[0];
 	row.insertCell().innerText = item[1]?.buy?.location_id;
-	row.insertCell().innerText = item[1]?.buy?.price;
+	row.insertCell().innerText = item[1]?.buy?.price.toLocaleString();
 	row.insertCell().innerText = item[1]?.buy?.range;
 	row.insertCell().innerText = item[1]?.sell?.location_id;
-	row.insertCell().innerText = item[1]?.sell?.price;
+	row.insertCell().innerText = item[1]?.sell?.price.toLocaleString();
 	row.insertCell().innerText = item[1]?.sell?.range;
-	row.insertCell().innerText = rate_item(item[1]);
+	row.insertCell().innerText = rate_item(item[1]).toLocaleString();
 }
 console.log(best_orders);
