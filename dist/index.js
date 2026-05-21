@@ -32,9 +32,14 @@ async function fetch_rated(url) {
  */
 
 /** @param {ItemOrders} orders */
-function rate_item(orders) {
-	const rank = (orders?.buy?.price - orders?.sell?.price) * Math.min(orders?.buy?.volume_remain, orders?.sell?.volume_remain);
-	return Number.isNaN(rank) ? -Infinity : rank;
+function get_potential_profit(orders) {
+	return (orders?.buy?.price - orders?.sell?.price) * Math.min(orders?.buy?.volume_remain, orders?.sell?.volume_remain);
+}
+
+/** @param {ItemOrders} orders */
+function rank_item(orders) {
+	const profit = get_potential_profit(orders);
+	return profit;
 }
 
 /** @type {Map<number, ItemOrders>} */
@@ -48,6 +53,28 @@ const regions = await (await fetch_rated(`https://esi.evetech.net/universe/regio
 progressBar.max = regions.length;
 progressBar.value = 0;
 progressBar.style.display = 'block';
+
+/** @param {Order[]} page */
+function process_orders_page(page) {
+	page.forEach(order => {
+		var best_order = best_orders.get(order.type_id);
+		if (order.is_buy_order && (best_order?.buy == undefined || order.price > best_order.buy.price)) {
+			if (best_order == undefined) {
+				best_order = {};
+			}
+			best_order.buy = order;
+		}
+		if (!order.is_buy_order && (best_order?.sell == undefined || order.price < best_order.sell.price)) {
+			if (best_order == undefined) {
+				best_order = {};
+			}
+			best_order.sell = order;
+		}
+		best_orders.set(order.type_id, best_order);
+	});
+
+}
+
 for (const region_id of regions) {
 	let total_pages = 1;
 	for (let page = 1; page <= total_pages; page++) {
@@ -62,39 +89,26 @@ for (const region_id of regions) {
 		progressBar.value += 1;
 		/** @type {Order[]} */
 		const orders_page = await resp.json();
-		orders_page.forEach(order => {
-			var best_order = best_orders.get(order.type_id);
-			if (order.is_buy_order && (best_order?.buy == undefined || order.price > best_order.buy.price)) {
-				if (best_order == undefined) {
-					best_order = {};
-				}
-				best_order.buy = order;
-			}
-			if (!order.is_buy_order && (best_order?.sell == undefined || order.price < best_order.sell.price)) {
-				if (best_order == undefined) {
-					best_order = {};
-				}
-				best_order.sell = order;
-			}
-			best_orders.set(order.type_id, best_order);
-		});
+		process_orders_page(orders_page);
 	}
 }
 progressBar.style.display = 'none';
 
-const best_items = new Map([...best_orders.entries()].sort((a, b) => rate_item(b[1]) - rate_item(a[1])));
+function update_items_table() {
+	const best_items = new Map([...best_orders.entries()].sort((a, b) => rank_item(b[1]) - rank_item(a[1])));
 
-/** @type {HTMLTableElement} */
-const table = document.getElementById("profitable");
-for (const item of best_items) {
-	const row = table.insertRow();
-	row.insertCell().innerText = item[0];
-	row.insertCell().innerText = item[1]?.buy?.location_id;
-	row.insertCell().innerText = item[1]?.buy?.price.toLocaleString();
-	row.insertCell().innerText = item[1]?.buy?.range;
-	row.insertCell().innerText = item[1]?.sell?.location_id;
-	row.insertCell().innerText = item[1]?.sell?.price.toLocaleString();
-	row.insertCell().innerText = item[1]?.sell?.range;
-	row.insertCell().innerText = rate_item(item[1]).toLocaleString();
+	/** @type {HTMLTableElement} */
+	const table = document.getElementById("profitable");
+	for (const item of best_items) {
+		const row = table.insertRow();
+		row.insertCell().innerText = item[0];
+		row.insertCell().innerText = item[1]?.buy?.location_id;
+		row.insertCell().innerText = item[1]?.buy?.price.toLocaleString();
+		row.insertCell().innerText = item[1]?.buy?.range;
+		row.insertCell().innerText = item[1]?.sell?.location_id;
+		row.insertCell().innerText = item[1]?.sell?.price.toLocaleString();
+		row.insertCell().innerText = item[1]?.sell?.range;
+		row.insertCell().innerText = get_potential_profit(item[1]).toLocaleString();
+	}
 }
-console.log(best_orders);
+update_items_table();
