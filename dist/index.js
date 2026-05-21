@@ -1,3 +1,4 @@
+const compat_date = "2026-05-19";
 async function fetch_rated(url) {
 	let resp;
 	while (resp == undefined || resp.status == 429) {
@@ -43,7 +44,7 @@ const best_orders = new Map();
 const progressBar = document.getElementById("update_progress");
 
 /** @type {number[]} */
-const regions = await (await fetch_rated("https://esi.evetech.net/universe/regions")).json();
+const regions = await (await fetch_rated(`https://esi.evetech.net/universe/regions?compatibility_date=${compat_date}`)).json();
 progressBar.max = regions.length;
 progressBar.value = 0;
 progressBar.style.display = 'block';
@@ -53,7 +54,7 @@ for (const region_id of regions) {
 		const params = new URLSearchParams();
 		params.append("page", page);
 
-		const resp = await fetch_rated(`https://esi.evetech.net/markets/${region_id}/orders?${params}`);
+		const resp = await fetch_rated(`https://esi.evetech.net/markets/${region_id}/orders?${params}&compatibility_date=${compat_date}`);
 		total_pages = resp.headers.get("X-Pages", 1);
 		if (page == 1) {
 			progressBar.max += total_pages - 1;
