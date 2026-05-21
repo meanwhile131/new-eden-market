@@ -76,25 +76,26 @@ const table = document.getElementById("profitable");
 const tokenInput = document.getElementById("token");
 
 /** @type {number[]} */
-const regions = await (await fetch_rated(`https://esi.evetech.net/universe/regions?compatibility_date=${compat_date}`)).json();
 progressBar.style.display = 'block';
+const regions = await (await fetch_rated(`https://esi.evetech.net/universe/regions?compatibility_date=${compat_date}`)).json();
 
 /** @type {Map<number, number>} */
-const region_pages = new Map();
-progressBar.max = 0;
+const region_page_counts = new Map();
+progressBar.max = regions.length;
+progressBar.value = 0;
 for (const region_id of regions) {
 	const resp = await fetch_rated(`https://esi.evetech.net/markets/${region_id}/orders?compatibility_date=${compat_date}`);
 	/** @type {Order[]} */
 	const orders_page = await resp.json();
 	process_orders_page(orders_page);
-	const total_pages = Number(resp.headers.get("X-Pages", 1));
-	progressBar.max += total_pages;
-	region_pages.set(region_id, total_pages);
+	const region_pages = Number(resp.headers.get("X-Pages", 1));
+	progressBar.value += 1;
+	progressBar.max += region_pages - 1;
+	region_page_counts.set(region_id, region_pages);
 }
 
-progressBar.value = regions.length;
 for (const region_id of regions) {
-	let total_pages = region_pages.get(region_id);
+	let total_pages = region_page_counts.get(region_id);
 	for (let page = 2; page <= total_pages; page++) {
 		const params = new URLSearchParams();
 		params.append("page", page);
