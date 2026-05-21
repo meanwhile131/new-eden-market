@@ -1,8 +1,11 @@
 const compat_date = "2026-05-19";
-async function fetch_rated(url) {
+
+/** @param {RequestInfo | URL} url
+ * @param {RequestInit} params */
+async function fetch_rated(url, params = undefined) {
 	let resp;
 	while (resp == undefined || resp.status == 429) {
-		resp = await fetch(url);
+		resp = await fetch(url, params);
 		if (resp.status == 429) {
 			const delay = resp.headers.get("Retry-After", 10);
 			await Promise(resolve => setTimeout(resolve, delay));
@@ -27,8 +30,8 @@ async function fetch_rated(url) {
  * */
 
 /** @typedef ItemOrders
- * @property {Order} buy
- * @property {Order} sell
+ * @property {Order?} buy
+ * @property {Order?} sell
  */
 
 /** @param {ItemOrders} orders */
@@ -44,9 +47,12 @@ function rank_item(orders) {
 
 /** @type {Map<number, ItemOrders>} */
 const best_orders = new Map();
-
 /** @type {HTMLProgressElement} */
 const progressBar = document.getElementById("update_progress");
+/** @type {HTMLTableElement} */
+const table = document.getElementById("profitable");
+/** @type {HTMLInputElement} */
+const tokenInput = document.getElementById("token");
 
 /** @type {number[]} */
 const regions = await (await fetch_rated(`https://esi.evetech.net/universe/regions?compatibility_date=${compat_date}`)).json();
@@ -94,20 +100,51 @@ for (const region_id of regions) {
 }
 progressBar.style.display = 'none';
 
+
+/** @param {RequestInfo | URL} url */
+async function esi_post(url) {
+	if (!tokenInput.value) {
+		alert("Specify an auth token");
+		return;
+	}
+	const resp = await fetch_rated(url, {method: "POST", headers: { "Authorization": `Bearer ${tokenInput.value}`}});
+	if (!resp.ok) {
+		alert(`${resp.status}\n${await resp.text()}`);
+	}
+}
+
+/** @param {HTMLTableRowElement} row
+ * @param {Order} order */
+function insert_order_info(row, order) {
+	const locationLink = document.createElement("a");
+	locationLink.href = `#${order?.location_id}`;
+	locationLink.addEventListener("click", async (e) => {
+		esi_post(`https://esi.evetech.net/ui/autopilot/waypoint?clear_other_waypoints=true&add_to_beginning=true&destination_id=${order?.location_id}&compatibility_date=${compat_date}`);
+		e.preventDefault();
+	});
+	locationLink.innerText = order?.location_id;
+	row.insertCell().appendChild(locationLink);
+	row.insertCell().innerText = order?.price.toLocaleString();
+	row.insertCell().innerText = order?.range;
+	row.insertCell().innerText = order?.volume_remain.toLocaleString();
+}
+
 function update_items_table() {
 	const best_items = new Map([...best_orders.entries()].sort((a, b) => rank_item(b[1]) - rank_item(a[1])));
 
-	/** @type {HTMLTableElement} */
-	const table = document.getElementById("profitable");
 	for (const item of best_items) {
+		if (!item[1].buy || !item[1].sell) continue;
 		const row = table.insertRow();
-		row.insertCell().innerText = item[0];
-		row.insertCell().innerText = item[1]?.buy?.location_id;
-		row.insertCell().innerText = item[1]?.buy?.price.toLocaleString();
-		row.insertCell().innerText = item[1]?.buy?.range;
-		row.insertCell().innerText = item[1]?.sell?.location_id;
-		row.insertCell().innerText = item[1]?.sell?.price.toLocaleString();
-		row.insertCell().innerText = item[1]?.sell?.range;
+		const idLink = document.createElement("a");
+		idLink.href = `#${item[0]}`;
+		idLink.addEventListener("click", async (e) => {
+			esi_post(`https://esi.evetech.net/ui/openwindow/marketdetails?type_id=${item[0]}&compatibility_date=${compat_date}`);
+			e.preventDefault();
+		});
+		idLink.innerText = item[0];
+		row.insertCell().appendChild(idLink);
+		insert_order_info(row, item[1]?.buy);
+		insert_order_info(row, item[1]?.sell);
 		row.insertCell().innerText = get_potential_profit(item[1]).toLocaleString();
 	}
 }

@@ -10,9 +10,17 @@
 				border: 2px solid;
 				border-collapse: collapse;
 			}
+			#token {
+				margin-left: 10px;
+				width: 100%;
+			}
+			.tokenLabel {
+				display: flex;
+			}
 		</style>
 	</head>
 	<body>
+		<label class="tokenLabel">Token: <input type="text" id="token"></label>
 		<progress style="display: none;" id="update_progress"></progress>
 		<table>
 			<caption>
@@ -21,17 +29,19 @@
 			<thead>
 				<tr>
 					<th rowspan="2">ID</th>
-					<th colspan="3">Buy</th>
-					<th colspan="3">Sell</th>
+					<th colspan="4">Buy</th>
+					<th colspan="4">Sell</th>
 					<th rowspan="2">Potential profit</th>
 				</tr>
 				<tr>
 					<th>Location</th>
 					<th>Price</th>
 					<th>Range</th>
+					<th>Volume</th>
 					<th>Location</th>
 					<th>Price</th>
 					<th>Range</th>
+					<th>Volume</th>
 				</tr>
 			</thead>
 			<tbody id="profitable">
